@@ -57,8 +57,8 @@ def payment_success():
     try:
         worksheet = gs.sheet.worksheet("Matches")
         matches = worksheet.get_all_records(expected_headers=[
-            "match_id", "שם עסק", "שם הספק", "מה שם המשתמש שלך בטלגרם?",
-            "מה שם המשתמש שלך בטלגרם?", "status buyer", "status supplier",
+            "match_id", "שם עסק", "שם הספק", "buyer username",
+            "supplier username", "status buyer", "status supplier",
             "תאריך", "מה אתם מחפשים?", "כמות נדרשת", "מיקום"
         ])
     except Exception as e:
@@ -66,8 +66,8 @@ def payment_success():
 
     for i, match in enumerate(matches, start=2):  # i = row number
         if match.get("match_id") == match_id:
-            buyer_username = match.get("מה שם המשתמש שלך בטלגרם?")
-            supplier_username = match.get("מה שם המשתמש שלך בטלגרם?", "").strip()
+            buyer_username = match.get("buyer username", "").strip()
+            supplier_username = match.get("supplier username", "").strip()
 
             # נזהה מי זה ששילם עכשיו
             if payer_username == buyer_username:
