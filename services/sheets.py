@@ -1,6 +1,7 @@
 import gspread
+import os
+import json
 from oauth2client.service_account import ServiceAccountCredentials
-from utils.config import GOOGLE_SHEET_NAME
 
 class GoogleSheetsService:
     def __init__(self):
@@ -8,11 +9,19 @@ class GoogleSheetsService:
             "https://spreadsheets.google.com/feeds",
             "https://www.googleapis.com/auth/drive"
         ]
-        creds = ServiceAccountCredentials.from_json_keyfile_name(
-            "credentials/google_creds.json", scope
-        )
+
+        creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
+        if creds_json is None:
+            raise Exception("❌ לא נמצא משתנה סביבה GOOGLE_CREDENTIALS_JSON")
+
+        creds_dict = json.loads(creds_json)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
-        self.sheet = client.open(GOOGLE_SHEET_NAME)
+
+        sheet_name = os.getenv("GOOGLE_SHEET_NAME")
+        if not sheet_name:
+            raise Exception("❌ לא הוגדר GOOGLE_SHEET_NAME")
+        self.sheet = client.open(sheet_name)
 
     def clean_record(self, record):
         """ניקוי רווחים משמות עמודות"""
