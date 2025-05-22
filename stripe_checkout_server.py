@@ -57,7 +57,7 @@ def payment_success():
     try:
         worksheet = gs.sheet.worksheet("Matches")
         matches = worksheet.get_all_records(expected_headers=[
-            "match_id", "שם עסק", "שם הספק", "buyer username",
+            "match_id", "שם עסק", "שם ספק", "buyer username",
             "supplier username", "status buyer", "status supplier",
             "תאריך", "מה אתם מחפשים?", "כמות נדרשת", "מיקום"
         ])
