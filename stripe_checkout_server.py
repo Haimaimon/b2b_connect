@@ -15,6 +15,10 @@ MATCH_FEE = 10.00  # שקלים
 # הגדרת שירות sheets
 gs = GoogleSheetsService()
 
+@app.route("/")
+def home():
+    return "Stripe Server is alive ✅", 200
+
 @app.route("/pay/<match_id>", methods=["GET"])
 def create_checkout_session(match_id):
     try:
