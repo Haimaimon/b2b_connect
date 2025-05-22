@@ -21,8 +21,11 @@ def home():
 
 @app.route("/pay/<match_id>", methods=["GET"])
 def create_checkout_session(match_id):
+    payer = request.args.get("payer")
+    if not payer:
+        return "Missing payer username", 400
+
     try:
-        # יצירת session תשלום
         session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[{
@@ -31,12 +34,12 @@ def create_checkout_session(match_id):
                     'product_data': {
                         'name': f'עמלת התאמה - {match_id}',
                     },
-                    'unit_amount': int(MATCH_FEE * 100),
+                    'unit_amount': 1000,
                 },
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=f"{request.url_root}success?match_id={match_id}",
+            success_url=f"{request.url_root}success?match_id={match_id}&payer={payer}",
             cancel_url=f"{request.url_root}cancel",
         )
         return redirect(session.url, code=303)
@@ -47,18 +50,37 @@ def create_checkout_session(match_id):
 def payment_success():
     match_id = request.args.get("match_id")
     if not match_id:
-        return "Missing match ID", 400
+        return "❌ Missing match ID", 400
 
-    # עדכון סטטוס התשלום ל-True בטבלת Matches
     worksheet = gs.sheet.worksheet("Matches")
     matches = worksheet.get_all_records()
 
-    for i, match in enumerate(matches, start=2):  # start=2 בגלל השורה של הכותרות
+    for i, match in enumerate(matches, start=2):  # i = row number
         if match.get("match_id") == match_id:
-            worksheet.update_cell(i, 6, "True")  # סטטוס תשלום
-            return "✅ התשלום הצליח! פרטי הקשר יישלחו אליכם בטלגרם."
+            buyer_paid = match.get("סטטוס תשלום עסק") == "True"
+            supplier_paid = match.get("סטטוס תשלום ספק") == "True"
+            buyer_username = match.get("buyer_username")
+            supplier_username = match.get("supplier_username")
 
-    return "Match ID not found.", 404
+            # נזהה מי זה ששילם עכשיו לפי query param
+            payer_username = request.args.get("payer")  # ?payer=@username
+            if payer_username == buyer_username:
+                worksheet.update_cell(i, 6, "True")  # תשלום עסק
+            elif payer_username == supplier_username:
+                worksheet.update_cell(i, 7, "True")  # תשלום ספק
+            else:
+                return "❌ לא זוהה מי שילם", 400
+
+            # נעדכן מחדש את הסטטוסים
+            buyer_paid = worksheet.cell(i, 6).value == "True"
+            supplier_paid = worksheet.cell(i, 7).value == "True"
+
+            if buyer_paid and supplier_paid:
+                return "🎉 שני הצדדים שילמו. פרטי הקשר יישלחו בטלגרם."
+            else:
+                return "✅ תשלום התקבל! ממתינים לתשלום מהצד השני."
+
+    return "❌ Match ID not found", 404
 
 @app.route("/cancel")
 def cancel():
