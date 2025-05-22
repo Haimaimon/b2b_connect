@@ -49,21 +49,27 @@ def create_checkout_session(match_id):
 @app.route("/success")
 def payment_success():
     match_id = request.args.get("match_id")
-    if not match_id:
-        return "❌ Missing match ID", 400
+    payer_username = request.args.get("payer")
 
-    worksheet = gs.sheet.worksheet("Matches")
-    matches = worksheet.get_all_records()
+    if not match_id or not payer_username:
+        return "❌ Missing match_id or payer", 400
+
+    try:
+        worksheet = gs.sheet.worksheet("Matches")
+        matches = worksheet.get_all_records(expected_headers=[
+            "match_id", "buyer_name", "supplier_name", "buyer_username",
+            "supplier_username", "סטטוס תשלום עסק", "סטטוס תשלום ספק",
+            "תאריך", "מוצר", "כמות", "מיקום"
+        ])
+    except Exception as e:
+        return f"❌ שגיאה בקריאת הנתונים מהגיליון: {e}", 500
 
     for i, match in enumerate(matches, start=2):  # i = row number
         if match.get("match_id") == match_id:
-            buyer_paid = match.get("סטטוס תשלום עסק") == "True"
-            supplier_paid = match.get("סטטוס תשלום ספק") == "True"
             buyer_username = match.get("buyer_username")
             supplier_username = match.get("supplier_username")
 
-            # נזהה מי זה ששילם עכשיו לפי query param
-            payer_username = request.args.get("payer")  # ?payer=@username
+            # נזהה מי זה ששילם עכשיו
             if payer_username == buyer_username:
                 worksheet.update_cell(i, 6, "True")  # תשלום עסק
             elif payer_username == supplier_username:
@@ -71,7 +77,7 @@ def payment_success():
             else:
                 return "❌ לא זוהה מי שילם", 400
 
-            # נעדכן מחדש את הסטטוסים
+            # בדיקה אם שני הצדדים שילמו
             buyer_paid = worksheet.cell(i, 6).value == "True"
             supplier_paid = worksheet.cell(i, 7).value == "True"
 
@@ -88,4 +94,3 @@ def cancel():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
-
